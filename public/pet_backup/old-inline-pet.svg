@@ -1,0 +1,15 @@
+<svg viewBox="0 0 240 240" role="img" xmlns="http://www.w3.org/2000/svg">
+  <ellipse class="shadow" cx="120" cy="210" rx="62" ry="14" />
+  <path
+    class="body"
+    d="M68 116C68 76 91 48 120 48C149 48 172 76 172 116V145C172 181 149 204 120 204C91 204 68 181 68 145V116Z"
+  />
+  <circle class="ear left" cx="82" cy="75" r="24" />
+  <circle class="ear right" cx="158" cy="75" r="24" />
+  <circle class="face" cx="120" cy="127" r="56" />
+  <circle class="eye left" cx="100" cy="119" r="8" />
+  <circle class="eye right" cx="140" cy="119" r="8" />
+  <path class="mouth" d="M108 145C114 150 126 150 132 145" />
+  <circle class="blush left" cx="86" cy="139" r="9" />
+  <circle class="blush right" cx="154" cy="139" r="9" />
+</svg>

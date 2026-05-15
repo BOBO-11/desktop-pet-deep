@@ -1,0 +1,342 @@
+.pet-motion {
+  width: 100%;
+  height: 100%;
+  display: block;
+  transform-origin: 50% 82%;
+  will-change: transform, opacity, filter;
+}
+
+.pet-sprite-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.pet-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+  opacity: 1;
+  filter: drop-shadow(0 12px 14px rgb(60 42 25 / 0.2));
+  will-change: opacity, filter;
+}
+
+.pet-image-enter {
+  animation: pet-image-enter 180ms ease-out both;
+}
+
+.pet-image-exit {
+  animation: pet-image-exit 180ms ease-out both;
+}
+
+.pet-idle .pet-motion {
+  animation: pet-idle-float 2.8s ease-in-out infinite;
+}
+
+.pet-happy .pet-motion {
+  animation: pet-happy-bounce 0.82s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+
+.pet-angry .pet-motion {
+  animation: pet-angry-shake 0.14s linear infinite;
+}
+
+.pet-angry .pet-image {
+  filter:
+    drop-shadow(0 12px 14px rgb(60 42 25 / 0.2))
+    drop-shadow(0 0 10px rgb(255 60 48 / 0.32));
+}
+
+.pet-sleep .pet-motion {
+  animation: pet-sleep-breathe 3.8s ease-in-out infinite;
+}
+
+.pet-sleep .pet-image {
+  opacity: 0.78;
+  filter: drop-shadow(0 12px 14px rgb(60 42 25 / 0.12)) brightness(0.86) saturate(0.86);
+}
+
+.pet-hungry .pet-motion {
+  animation: pet-hungry-tremble 0.5s ease-in-out infinite;
+}
+
+.pet-working .pet-motion {
+  animation: pet-working-bounce 1.2s ease-in-out infinite;
+}
+
+.pet-working .pet-image {
+  filter: drop-shadow(0 12px 14px rgb(60 42 25 / 0.2)) saturate(0.7);
+}
+
+.pet-work-timer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgb(0 0 0 / 0.55);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.pet-hunger-bar {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 4px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(0 0 0 / 0.18);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 180ms ease;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.pet-window:hover .pet-hunger-bar {
+  opacity: 1;
+}
+
+.pet-hunger-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease, background-color 0.6s ease;
+}
+
+.pet-points {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #5a4328;
+  background: rgb(255 255 255 / 0.72);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pet-points-float {
+  position: absolute;
+  left: 50%;
+  top: 30px;
+  transform: translateX(-50%);
+  color: #4caf50;
+  font-size: 16px;
+  font-weight: 800;
+  text-shadow: 0 1px 4px rgb(255 255 255 / 0.8);
+  pointer-events: none;
+  z-index: 3;
+  animation: pet-points-float-up 1s ease-out both;
+}
+
+@keyframes pet-points-float-up {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translate(-50%, -24px) scale(1.08);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -40px) scale(0.9);
+  }
+}
+
+.pet-bubble {
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  max-width: 160px;
+  padding: 5px 8px;
+  border: 1px solid rgb(255 255 255 / 0.9);
+  border-radius: 10px;
+  color: #3a2b22;
+  background: rgb(255 255 255 / 0.88);
+  box-shadow: 0 4px 12px rgb(60 42 25 / 0.14);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: pet-bubble-in 220ms ease-out both;
+  z-index: 2;
+}
+
+.pet-sleep + .pet-bubble {
+  opacity: 1;
+  animation: pet-bubble-sleep-in 180ms ease-out both;
+}
+
+@keyframes pet-image-enter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pet-image-exit {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes pet-bubble-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px) scale(0.92);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes pet-bubble-sleep-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px) scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes pet-idle-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-5px) scale(1.018, 0.988);
+  }
+}
+
+@keyframes pet-happy-bounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+
+  18% {
+    transform: translateY(-16px) rotate(-4deg) scale(1.04, 0.96);
+  }
+
+  36% {
+    transform: translateY(0) rotate(3deg) scale(0.98, 1.025);
+  }
+
+  56% {
+    transform: translateY(-10px) rotate(4deg) scale(1.025, 0.975);
+  }
+
+  76% {
+    transform: translateY(0) rotate(-2deg) scale(0.995, 1.01);
+  }
+}
+
+@keyframes pet-angry-shake {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+
+  20% {
+    transform: translateX(-4px) rotate(-1.5deg);
+  }
+
+  40% {
+    transform: translateX(4px) rotate(1.5deg);
+  }
+
+  60% {
+    transform: translateX(-3px) rotate(-1deg);
+  }
+
+  80% {
+    transform: translateX(3px) rotate(1deg);
+  }
+}
+
+@keyframes pet-sleep-breathe {
+  0%,
+  100% {
+    transform: translateY(4px) scale(0.97);
+  }
+
+  50% {
+    transform: translateY(10px) scale(0.985, 0.955);
+  }
+}
+
+@keyframes pet-hungry-tremble {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  25% {
+    transform: translateY(-3px);
+  }
+
+  50% {
+    transform: translateY(1px);
+  }
+
+  75% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes pet-working-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  30% {
+    transform: translateY(-8px) scale(1.03, 0.97);
+  }
+
+  50% {
+    transform: translateY(0) scale(0.98, 1.02);
+  }
+
+  80% {
+    transform: translateY(-4px) scale(1.01, 0.99);
+  }
+}

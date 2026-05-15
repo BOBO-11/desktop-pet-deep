@@ -1,0 +1,32 @@
+{
+  "name": "desktop-pet",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "watch:electron": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
+    "electron:dev": "cross-env NODE_ENV=development nodemon --watch dist-electron --ext js --exec electron .",
+    "start": "npm run build:electron && concurrently -k \"npm run dev\" \"npm run watch:electron\" \"wait-on tcp:5173 dist-electron/main.js && npm run electron:dev\"",
+    "build": "tsc && vite build && npm run build:electron",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.0.0",
+    "cross-env": "^10.0.0",
+    "electron": "^38.0.0",
+    "nodemon": "^3.1.0",
+    "typescript": "^5.8.0",
+    "vite": "^7.0.0",
+    "wait-on": "^8.0.0"
+  }
+}
