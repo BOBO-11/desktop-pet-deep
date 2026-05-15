@@ -188,6 +188,7 @@ export function usePetStateMachine(isHungry: boolean, isWorking: boolean, onInte
     if (isHungry && !wasHungry && !isWorking) {
       clearTimer(stateTimerRef);
       clearTimer(sleepTimerRef);
+      clearBubble();
       setState('hungry');
       scheduleDialogue();
     } else if (!isHungry && wasHungry && !isWorking) {

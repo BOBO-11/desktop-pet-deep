@@ -161,7 +161,13 @@ ipcMain.on('window:show-context-menu', () => {
 });
 
 ipcMain.on('window:move-by', (_event, delta: { x: number; y: number }) => {
-  if (!mainWindow || !Number.isFinite(delta.x) || !Number.isFinite(delta.y)) {
+  if (
+    !mainWindow ||
+    !delta ||
+    typeof delta !== 'object' ||
+    !Number.isFinite(delta.x) ||
+    !Number.isFinite(delta.y)
+  ) {
     return;
   }
 
