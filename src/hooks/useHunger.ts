@@ -1,42 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { HUNGER_RULES } from '../config/petRules';
+import { STORAGE_KEYS } from '../config/storageKeys';
+import { readJson, writeJson } from '../utils/storage';
 
-const STORAGE_KEY = 'pet-hunger';
-const HUNGER_DECAY_INTERVAL = 60000;
-const HUNGER_MAX = 100;
-const HUNGRY_THRESHOLD = 10;
+type StoredHunger = {
+  hunger: number;
+  timestamp: number;
+};
 
 function loadHunger(): number {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
-      if (
-        saved &&
-        typeof saved.hunger === 'number' &&
-        typeof saved.timestamp === 'number'
-      ) {
-        const elapsedMinutes = Math.floor((Date.now() - saved.timestamp) / 60000);
-        if (elapsedMinutes > 0) {
-          return Math.max(0, saved.hunger - elapsedMinutes);
-        }
-        return Math.min(HUNGER_MAX, Math.max(0, saved.hunger));
-      }
-    }
-  } catch {
-    // localStorage unavailable or corrupted
+  const saved = readJson<StoredHunger>(
+    STORAGE_KEYS.hunger,
+    { hunger: HUNGER_RULES.max, timestamp: Date.now() },
+    (value): value is StoredHunger =>
+      Boolean(
+        value &&
+          typeof value === 'object' &&
+          typeof (value as StoredHunger).hunger === 'number' &&
+          typeof (value as StoredHunger).timestamp === 'number'
+      )
+  );
+
+  const elapsedIntervals = Math.floor((Date.now() - saved.timestamp) / HUNGER_RULES.decayIntervalMs);
+  if (elapsedIntervals > 0) {
+    return Math.max(0, saved.hunger - elapsedIntervals * HUNGER_RULES.decayPerInterval);
   }
-  return HUNGER_MAX;
+
+  return Math.min(HUNGER_RULES.max, Math.max(0, saved.hunger));
 }
 
 function saveHunger(hunger: number) {
-  try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ hunger, timestamp: Date.now() })
-    );
-  } catch {
-    // localStorage unavailable
-  }
+  writeJson(STORAGE_KEYS.hunger, { hunger, timestamp: Date.now() });
 }
 
 export function useHunger() {
@@ -50,8 +44,8 @@ export function useHunger() {
     }
   }, []);
 
-  const feed = useCallback((amount: number = HUNGER_MAX) => {
-    setHunger((prev) => Math.min(HUNGER_MAX, prev + amount));
+  const feed = useCallback((amount: number = HUNGER_RULES.max) => {
+    setHunger((prev) => Math.min(HUNGER_RULES.max, prev + amount));
   }, []);
 
   useEffect(() => {
@@ -60,16 +54,16 @@ export function useHunger() {
 
   useEffect(() => {
     timerRef.current = window.setInterval(() => {
-      setHunger((prev) => Math.max(0, prev - 1));
-    }, HUNGER_DECAY_INTERVAL);
+      setHunger((prev) => Math.max(0, prev - HUNGER_RULES.decayPerInterval));
+    }, HUNGER_RULES.decayIntervalMs);
 
     return clearTimer;
   }, [clearTimer]);
 
   return {
     hunger,
-    hungerPercent: (hunger / HUNGER_MAX) * 100,
-    isHungry: hunger < HUNGRY_THRESHOLD,
+    hungerPercent: (hunger / HUNGER_RULES.max) * 100,
+    isHungry: hunger < HUNGER_RULES.hungryThreshold,
     feed
   };
 }

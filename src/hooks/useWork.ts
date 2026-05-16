@@ -1,33 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { PET_TIMING } from '../config/petRules';
+import { STORAGE_KEYS } from '../config/storageKeys';
+import { readJson, removeStoredValue, writeJson } from '../utils/storage';
 
 type WorkState = { endTime: number; reward: number } | null;
 
-const STORAGE_KEY = 'pet-work';
-
 function loadWork(): WorkState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as WorkState;
-      if (parsed && typeof parsed.endTime === 'number' && typeof parsed.reward === 'number') {
-        return parsed;
-      }
-    }
-  } catch {
-    // localStorage unavailable or corrupted
-  }
-  return null;
+  return readJson<WorkState>(
+    STORAGE_KEYS.work,
+    null,
+    (value): value is WorkState =>
+      value === null ||
+      Boolean(
+        value &&
+          typeof value === 'object' &&
+          typeof (value as Exclude<WorkState, null>).endTime === 'number' &&
+          typeof (value as Exclude<WorkState, null>).reward === 'number'
+      )
+  );
 }
 
 function saveWork(state: WorkState) {
-  try {
-    if (state) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  } catch {
-    // localStorage unavailable
+  if (state) {
+    writeJson(STORAGE_KEYS.work, state);
+  } else {
+    removeStoredValue(STORAGE_KEYS.work);
   }
 }
 
@@ -84,7 +81,7 @@ export function useWork() {
         setLastReward(state.reward);
         setWorkState(null);
       }
-    }, 250);
+    }, PET_TIMING.workTickMs);
 
     return () => window.clearInterval(interval);
   }, [workState]);

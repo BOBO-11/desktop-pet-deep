@@ -1,20 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { PET_INTERACTION, PET_TIMING } from '../config/petRules';
 import kleeLines from '../data/kleeDialogue';
-
-export type PetState = 'idle' | 'happy' | 'angry' | 'sleep' | 'hungry' | 'working';
-
-const HAPPY_DURATION = 2000;
-const ANGRY_DURATION = 3000;
-const SLEEP_DELAY = 600000;
-const ANGRY_CLICK_THRESHOLD = 5;
-const CLICK_CHAIN_RESET_DELAY = 1200;
-const BUBBLE_DURATION = 2000;
-const DIALOGUE_MIN_DELAY = 30000;
-const DIALOGUE_MAX_DELAY = 60000;
-const DIALOGUE_BUBBLE_DURATION = 5000;
+import type { PetState } from '../domain/pet';
 
 function getRandomDialogueDelay() {
-  return DIALOGUE_MIN_DELAY + Math.random() * (DIALOGUE_MAX_DELAY - DIALOGUE_MIN_DELAY);
+  return (
+    PET_TIMING.dialogueMinDelayMs +
+    Math.random() * (PET_TIMING.dialogueMaxDelayMs - PET_TIMING.dialogueMinDelayMs)
+  );
 }
 
 function pickRandomLine() {
@@ -64,7 +57,7 @@ export function usePetStateMachine(isHungry: boolean, isWorking: boolean, onInte
   }, [clearTimer]);
 
   const showBubble = useCallback(
-    (text: string, duration: number | null = BUBBLE_DURATION) => {
+    (text: string, duration: number | null = PET_TIMING.bubbleDurationMs) => {
       clearTimer(bubbleTimerRef);
       setBubbleText(text);
 
@@ -97,7 +90,7 @@ export function usePetStateMachine(isHungry: boolean, isWorking: boolean, onInte
       clearTimer(stateTimerRef);
       setState('sleep');
       showBubble('zzz...', null);
-    }, SLEEP_DELAY);
+    }, PET_TIMING.sleepDelayMs);
   }, [clearTimer, setState, showBubble]);
 
   const registerInteraction = useCallback(() => {
@@ -116,7 +109,7 @@ export function usePetStateMachine(isHungry: boolean, isWorking: boolean, onInte
         scheduleDialogue();
         return;
       }
-      showBubble(pickRandomLine(), DIALOGUE_BUBBLE_DURATION);
+      showBubble(pickRandomLine(), PET_TIMING.dialogueBubbleDurationMs);
       scheduleDialogue();
     }, getRandomDialogueDelay());
   }, [clearTimer, showBubble]);
@@ -154,20 +147,20 @@ export function usePetStateMachine(isHungry: boolean, isWorking: boolean, onInte
     clearTimer(clickChainTimerRef);
     clickChainTimerRef.current = window.setTimeout(() => {
       clickCountRef.current = 0;
-    }, CLICK_CHAIN_RESET_DELAY);
+    }, PET_TIMING.clickChainResetDelayMs);
 
-    if (clickCountRef.current >= ANGRY_CLICK_THRESHOLD) {
+    if (clickCountRef.current >= PET_INTERACTION.angryClickThreshold) {
       resetClickChain();
       setState('angry');
       showBubble('别戳啦！');
-      returnToIdleAfter(ANGRY_DURATION, 'angry');
+      returnToIdleAfter(PET_TIMING.angryDurationMs, 'angry');
       return;
     }
 
     setState('happy');
     showBubble('嘿嘿~');
     onInteractionRef.current?.('click');
-    returnToIdleAfter(HAPPY_DURATION, 'happy');
+    returnToIdleAfter(PET_TIMING.happyDurationMs, 'happy');
   }, [clearTimer, resetClickChain, returnToIdleAfter, scheduleSleep, setState, showBubble]);
 
   const wakeFromSleep = useCallback(() => {
@@ -197,7 +190,7 @@ export function usePetStateMachine(isHungry: boolean, isWorking: boolean, onInte
       scheduleSleep();
       scheduleDialogue();
     }
-  }, [isHungry, isWorking, clearTimer, setState, scheduleDialogue, scheduleSleep]);
+  }, [isHungry, isWorking, clearTimer, clearBubble, setState, scheduleDialogue, scheduleSleep]);
 
   useEffect(() => {
     const wasWorking = prevWorkingRef.current;

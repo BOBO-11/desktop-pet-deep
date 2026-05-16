@@ -46,6 +46,8 @@ desktop-pet
 └─ vite.config.ts
 ```
 
+更详细的逻辑架构、功能清单和后续功能扩展建议见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+
 ## 安装依赖
 
 ```bash

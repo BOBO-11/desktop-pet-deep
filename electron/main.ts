@@ -1,10 +1,12 @@
 import { app, BrowserWindow, Menu, ipcMain, screen } from 'electron';
 import path from 'node:path';
+import { FEED_MENU_ITEMS, WORK_MENU_ITEMS } from './menuConfig';
 
 let mainWindow: BrowserWindow | null = null;
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 const MAX_MOVE_DELTA = 100;
+const WINDOW_SIZE = 240;
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -12,8 +14,8 @@ function clamp(value: number, min: number, max: number) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 240,
-    height: 240,
+    width: WINDOW_SIZE,
+    height: WINDOW_SIZE,
     frame: false,
     transparent: true,
     resizable: false,
@@ -72,68 +74,22 @@ ipcMain.on('window:show-context-menu', () => {
   const menu = Menu.buildFromTemplate([
     {
       label: '打工',
-      submenu: [
-        {
-          label: '5分钟 (+15积分)',
-          click: () => {
-            mainWindow?.webContents.send('pet:start-work', { duration: 5 * 60 * 1000, reward: 15 });
-          }
-        },
-        {
-          label: '10分钟 (+28积分)',
-          click: () => {
-            mainWindow?.webContents.send('pet:start-work', { duration: 10 * 60 * 1000, reward: 28 });
-          }
-        },
-        {
-          label: '20分钟 (+50积分)',
-          click: () => {
-            mainWindow?.webContents.send('pet:start-work', { duration: 20 * 60 * 1000, reward: 50 });
-          }
-        },
-        {
-          label: '30分钟 (+60积分)',
-          click: () => {
-            mainWindow?.webContents.send('pet:start-work', { duration: 30 * 60 * 1000, reward: 60 });
-          }
-        },
-        {
-          label: '1小时 (+100积分)',
-          click: () => {
-            mainWindow?.webContents.send('pet:start-work', { duration: 60 * 60 * 1000, reward: 100 });
-          }
+      submenu: WORK_MENU_ITEMS.map((item) => ({
+        label: item.label,
+        click: () => {
+          mainWindow?.webContents.send('pet:start-work', { duration: item.duration, reward: item.reward });
         }
-      ]
+      }))
     },
     { type: 'separator' },
     {
       label: '喂食',
-      submenu: [
-        {
-          label: '烤鱼 — 15积分',
-          click: () => {
-            mainWindow?.webContents.send('pet:feed', { hungerRestore: 30, cost: 15 });
-          }
-        },
-        {
-          label: '蒙德土豆饼 — 25积分',
-          click: () => {
-            mainWindow?.webContents.send('pet:feed', { hungerRestore: 50, cost: 25 });
-          }
-        },
-        {
-          label: '嘟嘟莲糕点 — 40积分',
-          click: () => {
-            mainWindow?.webContents.send('pet:feed', { hungerRestore: 80, cost: 40 });
-          }
-        },
-        {
-          label: '渔人吐司 — 60积分',
-          click: () => {
-            mainWindow?.webContents.send('pet:feed', { hungerRestore: 100, cost: 60 });
-          }
+      submenu: FEED_MENU_ITEMS.map((item) => ({
+        label: item.label,
+        click: () => {
+          mainWindow?.webContents.send('pet:feed', { hungerRestore: item.hungerRestore, cost: item.cost });
         }
-      ]
+      }))
     },
     { type: 'separator' },
     {

@@ -1,12 +1,16 @@
 /// <reference types="vite/client" />
 
-interface Window {
-  desktopPet: {
-    showContextMenu: () => void;
-    moveBy: (delta: { x: number; y: number }) => void;
-    getAlwaysOnTop: () => Promise<boolean>;
-    onAlwaysOnTopChanged: (callback: (value: boolean) => void) => () => void;
-    onFeed: (callback: (data: { hungerRestore: number; cost: number }) => void) => () => void;
-    onStartWork: (callback: (data: { duration: number; reward: number }) => void) => () => void;
-  };
+import type { FeedPayload, MoveDelta, WorkPayload } from './domain/pet';
+
+declare global {
+  interface Window {
+    desktopPet: {
+      showContextMenu: () => void;
+      moveBy: (delta: MoveDelta) => void;
+      getAlwaysOnTop: () => Promise<boolean>;
+      onAlwaysOnTopChanged: (callback: (value: boolean) => void) => () => void;
+      onFeed: (callback: (data: FeedPayload) => void) => () => void;
+      onStartWork: (callback: (data: WorkPayload) => void) => () => void;
+    };
+  }
 }

@@ -1,8 +1,12 @@
 import { MouseEvent, PointerEvent, SyntheticEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { PetState, usePetStateMachine } from './hooks/usePetStateMachine';
+import { FALLBACK_PET_IMAGE, PET_IMAGES } from './config/petAssets';
+import { PET_INTERACTION, PET_TIMING } from './config/petRules';
+import type { FloatText, PetState } from './domain/pet';
 import { useHunger } from './hooks/useHunger';
+import { usePetStateMachine } from './hooks/usePetStateMachine';
 import { usePoints } from './hooks/usePoints';
 import { useWork } from './hooks/useWork';
+import { formatDurationSeconds } from './utils/format';
 
 type DragState = {
   startScreenX: number;
@@ -12,28 +16,10 @@ type DragState = {
   isDragging: boolean;
 };
 
-type FloatText = { id: number; amount: number };
-
-const DRAG_THRESHOLD = 4;
-const PET_IMAGES: Record<PetState, string> = {
-  idle: '/pet/idle.png',
-  happy: '/pet/happy.png',
-  angry: '/pet/angry.png',
-  sleep: '/pet/sleep.png',
-  hungry: '/pet/angry.png',
-  working: '/pet/idle.png'
-};
-
 function getHungerColor(percent: number) {
   if (percent < 25) return '#e74c3c';
   if (percent < 50) return '#f39c12';
   return '#2ecc71';
-}
-
-function formatTime(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 export function App() {
@@ -46,7 +32,7 @@ export function App() {
     setFloatTexts((prev) => [...prev, { id, amount }]);
     window.setTimeout(() => {
       setFloatTexts((prev) => prev.filter((f) => f.id !== id));
-    }, 1000);
+    }, PET_TIMING.floatingTextDurationMs);
   }, []);
 
   const handleInteraction = useCallback(
@@ -122,7 +108,7 @@ export function App() {
     imageFadeTimerRef.current = window.setTimeout(() => {
       setPreviousPetState(null);
       imageFadeTimerRef.current = null;
-    }, 180);
+    }, PET_TIMING.imageFadeDurationMs);
   }, [petState]);
 
   useEffect(() => {
@@ -134,8 +120,8 @@ export function App() {
   }, []);
 
   function handleImageError(event: SyntheticEvent<HTMLImageElement>) {
-    if (!event.currentTarget.src.endsWith('/pet/idle.png')) {
-      event.currentTarget.src = '/pet/idle.png';
+    if (!event.currentTarget.src.endsWith(FALLBACK_PET_IMAGE)) {
+      event.currentTarget.src = FALLBACK_PET_IMAGE;
     }
   }
 
@@ -183,7 +169,7 @@ export function App() {
 
     const totalMoveX = Math.abs(event.screenX - dragState.startScreenX);
     const totalMoveY = Math.abs(event.screenY - dragState.startScreenY);
-    if (totalMoveX > DRAG_THRESHOLD || totalMoveY > DRAG_THRESHOLD) {
+    if (totalMoveX > PET_INTERACTION.dragThresholdPx || totalMoveY > PET_INTERACTION.dragThresholdPx) {
       dragState.isDragging = true;
     }
 
@@ -221,14 +207,14 @@ export function App() {
 
       {isWorking && (
         <div className="pet-work-timer">
-          打工中... {formatTime(remainingSeconds)}
+          打工中... {formatDurationSeconds(remainingSeconds)}
         </div>
       )}
 
       <button
         className={`pet pet-${petState}`}
         type="button"
-        aria-label={'桌宠'}
+        aria-label="桌宠"
         onClick={handleClick}
         onMouseEnter={wakeFromSleep}
         onContextMenu={(event) => {
@@ -271,7 +257,7 @@ export function App() {
         </div>
       )}
 
-      <div className="pet-points">🪙 {points}</div>
+      <div className="pet-points">积分 {points}</div>
 
       <div className="status" aria-live="polite">
         {isAlwaysOnTop ? '置顶' : '普通'}
