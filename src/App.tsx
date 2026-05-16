@@ -1,7 +1,8 @@
-import { CSSProperties, MouseEvent, PointerEvent, SyntheticEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { FALLBACK_PET_IMAGE, PET_IMAGES } from './config/petAssets';
+import { CSSProperties, MouseEvent, PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { PET_INTERACTION, PET_TIMING } from './config/petRules';
+import { PET_SPRITE_FRAMES } from './config/petAssets';
 import type { FloatText, PetParticle, PetParticleKind, PetVisualState } from './domain/pet';
+import { PetSprite } from './components/PetSprite';
 import { useHunger } from './hooks/useHunger';
 import { usePetStateMachine } from './hooks/usePetStateMachine';
 import { usePoints } from './hooks/usePoints';
@@ -80,7 +81,6 @@ export function App() {
     usePetStateMachine(isHungry, isWorking, handleInteraction);
 
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(true);
-  const [previousPetState, setPreviousPetState] = useState<PetVisualState | null>(null);
   const [floatTexts, setFloatTexts] = useState<FloatText[]>([]);
   const [particles, setParticles] = useState<PetParticle[]>([]);
   const [dragTilt, setDragTilt] = useState(0);
@@ -88,9 +88,6 @@ export function App() {
   const particleIdRef = useRef(0);
   const dragStateRef = useRef<DragState | null>(null);
   const suppressNextClickRef = useRef(false);
-  const lastPetStateRef = useRef<PetVisualState>(petVisualState);
-  const imageFadeTimerRef = useRef<number | null>(null);
-
   const spawnParticles = useCallback((kind: PetParticleKind, count: number) => {
     const nextParticles = Array.from({ length: count }, (_, index) => ({
       id: particleIdRef.current++,
@@ -106,6 +103,13 @@ export function App() {
       const ids = new Set(nextParticles.map((particle) => particle.id));
       setParticles((prev) => prev.filter((particle) => !ids.has(particle.id)));
     }, PET_TIMING.particleDurationMs + count * 45);
+  }, []);
+
+  useEffect(() => {
+    Object.values(PET_SPRITE_FRAMES).flat().forEach((src) => {
+      const image = new Image();
+      image.src = src;
+    });
   }, []);
 
   useEffect(() => {
@@ -149,37 +153,6 @@ export function App() {
       clearLastReward();
     }
   }, [lastReward, addPoints, spawnFloat, clearLastReward, showBubble, spawnParticles]);
-
-  useEffect(() => {
-    if (lastPetStateRef.current === petVisualState) {
-      return;
-    }
-
-    if (imageFadeTimerRef.current !== null) {
-      window.clearTimeout(imageFadeTimerRef.current);
-    }
-
-    setPreviousPetState(lastPetStateRef.current);
-    lastPetStateRef.current = petVisualState;
-    imageFadeTimerRef.current = window.setTimeout(() => {
-      setPreviousPetState(null);
-      imageFadeTimerRef.current = null;
-    }, PET_TIMING.imageFadeDurationMs);
-  }, [petVisualState]);
-
-  useEffect(() => {
-    return () => {
-      if (imageFadeTimerRef.current !== null) {
-        window.clearTimeout(imageFadeTimerRef.current);
-      }
-    };
-  }, []);
-
-  function handleImageError(event: SyntheticEvent<HTMLImageElement>) {
-    if (!event.currentTarget.src.endsWith(FALLBACK_PET_IMAGE)) {
-      event.currentTarget.src = FALLBACK_PET_IMAGE;
-    }
-  }
 
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     if (suppressNextClickRef.current) {
@@ -323,23 +296,7 @@ export function App() {
       >
         <span className="pet-motion">
           <span className="pet-sprite-stage">
-            {previousPetState && (
-              <img
-                className="pet-image pet-image-exit"
-                src={PET_IMAGES[previousPetState]}
-                alt=""
-                draggable={false}
-                onError={handleImageError}
-              />
-            )}
-            <img
-              key={petVisualState}
-              className="pet-image pet-image-enter"
-              src={PET_IMAGES[petVisualState]}
-              alt=""
-              draggable={false}
-              onError={handleImageError}
-            />
+            <PetSprite visualState={petVisualState} action={petAction} />
           </span>
         </span>
       </button>

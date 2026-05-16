@@ -2,6 +2,14 @@ import { app, BrowserWindow, Menu, ipcMain, screen } from 'electron';
 import path from 'node:path';
 import { FEED_MENU_ITEMS, WORK_MENU_ITEMS } from './menuConfig';
 
+app.disableHardwareAcceleration();
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!gotSingleInstanceLock) {
+  app.exit(0);
+}
+
 let mainWindow: BrowserWindow | null = null;
 
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -45,7 +53,26 @@ function createWindow() {
   });
 }
 
+app.on('second-instance', () => {
+  if (!mainWindow) {
+    createWindow();
+    return;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  mainWindow.show();
+  mainWindow.focus();
+});
+
 app.whenReady().then(() => {
+  if (!gotSingleInstanceLock) {
+    app.exit(0);
+    return;
+  }
+
   createWindow();
 
   app.on('activate', () => {
