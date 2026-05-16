@@ -75,6 +75,47 @@
   filter: drop-shadow(0 12px 14px rgb(60 42 25 / 0.2)) saturate(0.7);
 }
 
+.pet-action-happyJump .pet-motion {
+  animation: pet-happy-bounce 0.82s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+
+.pet-action-angryShake .pet-motion {
+  animation: pet-angry-shake 0.14s linear infinite;
+}
+
+.pet-action-eating .pet-motion {
+  animation: pet-eating-pop 0.9s cubic-bezier(0.2, 0.9, 0.25, 1.1) both;
+}
+
+.pet-action-dragging .pet-motion {
+  animation: pet-drag-squash 0.52s ease-in-out infinite;
+}
+
+.pet-action-wake .pet-motion {
+  animation: pet-wake-stretch 0.65s cubic-bezier(0.2, 0.9, 0.25, 1.12) both;
+}
+
+.pet-action-blink .pet-sprite-stage::after {
+  content: none;
+}
+
+.pet-action-blink .pet-image {
+  animation: pet-blink-fade 180ms ease-in-out both;
+}
+
+.pet-status-working .pet-sprite-stage::after {
+  content: "滴";
+  position: absolute;
+  right: 24%;
+  top: 20%;
+  color: #58aee8;
+  font-size: 18px;
+  font-weight: 800;
+  text-shadow: 0 1px 4px rgb(255 255 255 / 0.8);
+  pointer-events: none;
+  animation: pet-sweat-drop 1.1s ease-in-out infinite;
+}
+
 .pet-work-timer {
   position: absolute;
   left: 50%;
@@ -146,6 +187,52 @@
   animation: pet-points-float-up 1s ease-out both;
 }
 
+.pet-particle {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 4;
+  animation: pet-particle-rise 1.2s ease-out both;
+}
+
+.pet-particle-heart {
+  color: #ff5a86;
+  text-shadow: 0 1px 5px rgb(255 255 255 / 0.85);
+}
+
+.pet-particle-star {
+  color: #ffc83d;
+  text-shadow: 0 1px 5px rgb(255 255 255 / 0.9);
+}
+
+.pet-particle-spark {
+  color: #ff4d35;
+  text-shadow: 0 1px 5px rgb(255 255 255 / 0.8);
+}
+
+.pet-particle-coin {
+  color: #f4b731;
+  text-shadow: 0 1px 4px rgb(92 59 12 / 0.25);
+}
+
+.pet-particle-food {
+  color: #f18842;
+  border-radius: 50%;
+  text-shadow: 0 1px 4px rgb(255 255 255 / 0.8);
+}
+
+.pet-particle-sweat {
+  color: #58aee8;
+  text-shadow: 0 1px 5px rgb(255 255 255 / 0.9);
+}
+
+.pet-particle-zzz {
+  color: #7f8fa6;
+  text-shadow: 0 1px 5px rgb(255 255 255 / 0.9);
+}
+
 @keyframes pet-points-float-up {
   0% {
     opacity: 1;
@@ -160,6 +247,27 @@
   100% {
     opacity: 0;
     transform: translate(-50%, -40px) scale(0.9);
+  }
+}
+
+@keyframes pet-particle-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(12px) scale(0.55) rotate(-8deg);
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(-26px) scale(1.1) rotate(10deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(-52px) scale(0.82) rotate(-12deg);
   }
 }
 
@@ -266,6 +374,84 @@
 
   76% {
     transform: translateY(0) rotate(-2deg) scale(0.995, 1.01);
+  }
+}
+
+@keyframes pet-eating-pop {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  22% {
+    transform: translateY(-8px) scale(1.08, 0.94) rotate(-3deg);
+  }
+
+  44% {
+    transform: translateY(0) scale(0.94, 1.08) rotate(2deg);
+  }
+
+  68% {
+    transform: translateY(-5px) scale(1.04, 0.97) rotate(3deg);
+  }
+}
+
+@keyframes pet-drag-squash {
+  0%,
+  100% {
+    transform: rotate(var(--pet-drag-tilt, 0deg)) scale(1.02, 0.98);
+  }
+
+  50% {
+    transform: rotate(var(--pet-drag-tilt, 0deg)) translateY(3px) scale(0.98, 1.03);
+  }
+}
+
+@keyframes pet-wake-stretch {
+  0% {
+    transform: translateY(10px) scale(0.94, 0.86);
+  }
+
+  45% {
+    transform: translateY(-12px) scale(1.08, 0.96) rotate(-4deg);
+  }
+
+  75% {
+    transform: translateY(0) scale(0.98, 1.05) rotate(2deg);
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pet-blink-fade {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  45%,
+  60% {
+    opacity: 0.72;
+    transform: scaleY(0.92);
+  }
+}
+
+@keyframes pet-sweat-drop {
+  0% {
+    opacity: 0;
+    transform: translate(0, -6px) scale(0.85);
+  }
+
+  35% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(8px, 18px) scale(1.05);
   }
 }
 

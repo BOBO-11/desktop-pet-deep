@@ -1,6 +1,6 @@
-import type { PetState } from '../domain/pet';
+import type { PetVisualState } from '../domain/pet';
 
-export const PET_IMAGES: Record<PetState, string> = {
+export const PET_IMAGES: Record<PetVisualState, string> = {
   idle: '/pet/idle.png',
   happy: '/pet/happy.png',
   angry: '/pet/angry.png',

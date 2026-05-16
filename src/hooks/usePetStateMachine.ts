@@ -1,55 +1,136 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PET_INTERACTION, PET_TIMING } from '../config/petRules';
 import kleeLines from '../data/kleeDialogue';
-import type { PetState } from '../domain/pet';
+import type { PetAction, PetStatus, PetVisualState } from '../domain/pet';
 
-function getRandomDialogueDelay() {
-  return (
-    PET_TIMING.dialogueMinDelayMs +
-    Math.random() * (PET_TIMING.dialogueMaxDelayMs - PET_TIMING.dialogueMinDelayMs)
-  );
+type TimerRef = { current: number | null };
+type ActionMode = 'queue' | 'replace';
+type QueuedAction = { action: PetAction; duration: number | null };
+
+function getRandomDelay(min: number, max: number) {
+  return min + Math.random() * (max - min);
 }
 
 function pickRandomLine() {
   return kleeLines[Math.floor(Math.random() * kleeLines.length)];
 }
 
-function getInitialState(isHungry: boolean, isWorking: boolean): PetState {
+function getBaseStatus(isHungry: boolean, isWorking: boolean): PetStatus {
   if (isWorking) return 'working';
   if (isHungry) return 'hungry';
   return 'idle';
 }
 
+function getVisualState(status: PetStatus, action: PetAction): PetVisualState {
+  if (action === 'happyJump' || action === 'eating' || action === 'wake') {
+    return 'happy';
+  }
+
+  if (action === 'angryShake') {
+    return 'angry';
+  }
+
+  return status;
+}
+
 export function usePetStateMachine(isHungry: boolean, isWorking: boolean, onInteraction?: (type: string) => void) {
-  const [petState, setPetState] = useState<PetState>(getInitialState(isHungry, isWorking));
+  const [petStatus, setPetStatus] = useState<PetStatus>(getBaseStatus(isHungry, isWorking));
+  const [petAction, setPetActionState] = useState<PetAction>('none');
   const [bubbleText, setBubbleText] = useState<string | null>(null);
-  const stateRef = useRef<PetState>(getInitialState(isHungry, isWorking));
+
+  const statusRef = useRef<PetStatus>(getBaseStatus(isHungry, isWorking));
+  const actionRef = useRef<PetAction>('none');
+  const actionQueueRef = useRef<QueuedAction[]>([]);
   const isHungryRef = useRef(isHungry);
-  isHungryRef.current = isHungry;
-  const prevHungryRef = useRef(false);
+  const prevHungryRef = useRef(isHungry);
   const isWorkingRef = useRef(isWorking);
-  isWorkingRef.current = isWorking;
-  const prevWorkingRef = useRef(false);
-  const stateTimerRef = useRef<number | null>(null);
+  const prevWorkingRef = useRef(isWorking);
   const sleepTimerRef = useRef<number | null>(null);
   const bubbleTimerRef = useRef<number | null>(null);
   const dialogueTimerRef = useRef<number | null>(null);
-  const clickChainTimerRef = useRef<number | null>(null);
+  const blinkTimerRef = useRef<number | null>(null);
+  const actionTimerRef = useRef<number | null>(null);
+  const lastClickAtRef = useRef(0);
   const clickCountRef = useRef(0);
   const onInteractionRef = useRef(onInteraction);
+
+  isHungryRef.current = isHungry;
+  isWorkingRef.current = isWorking;
   onInteractionRef.current = onInteraction;
 
-  const clearTimer = useCallback((timerRef: { current: number | null }) => {
+  const clearTimer = useCallback((timerRef: TimerRef) => {
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
   }, []);
 
-  const setState = useCallback((nextState: PetState) => {
-    stateRef.current = nextState;
-    setPetState(nextState);
+  const setStatus = useCallback((nextStatus: PetStatus) => {
+    statusRef.current = nextStatus;
+    setPetStatus(nextStatus);
   }, []);
+
+  const setAction = useCallback((nextAction: PetAction) => {
+    actionRef.current = nextAction;
+    setPetActionState(nextAction);
+  }, []);
+
+  const runNextQueuedAction = useCallback(() => {
+    const next = actionQueueRef.current.shift();
+    if (!next) {
+      setAction('none');
+      return;
+    }
+
+    setAction(next.action);
+    if (next.duration !== null) {
+      actionTimerRef.current = window.setTimeout(() => {
+        actionTimerRef.current = null;
+        runNextQueuedAction();
+      }, next.duration);
+    }
+  }, [setAction]);
+
+  const triggerAction = useCallback(
+    (action: PetAction, duration: number | null, mode: ActionMode = 'queue') => {
+      if (statusRef.current === 'sleep' && action !== 'wake') {
+        return;
+      }
+
+      if (mode === 'replace') {
+        clearTimer(actionTimerRef);
+        actionQueueRef.current = [];
+        setAction(action);
+      } else if (actionRef.current !== 'none') {
+        actionQueueRef.current.push({ action, duration });
+        return;
+      } else {
+        setAction(action);
+      }
+
+      if (duration !== null) {
+        clearTimer(actionTimerRef);
+        actionTimerRef.current = window.setTimeout(() => {
+          actionTimerRef.current = null;
+          runNextQueuedAction();
+        }, duration);
+      }
+    },
+    [clearTimer, runNextQueuedAction, setAction]
+  );
+
+  const clearAction = useCallback(
+    (expectedAction?: PetAction) => {
+      if (expectedAction && actionRef.current !== expectedAction) {
+        return;
+      }
+
+      clearTimer(actionTimerRef);
+      actionQueueRef.current = [];
+      setAction('none');
+    },
+    [clearTimer, setAction]
+  );
 
   const clearBubble = useCallback(() => {
     clearTimer(bubbleTimerRef);
@@ -75,122 +156,144 @@ export function usePetStateMachine(isHungry: boolean, isWorking: boolean, onInte
 
   const resetClickChain = useCallback(() => {
     clickCountRef.current = 0;
-    clearTimer(clickChainTimerRef);
-  }, [clearTimer]);
+    lastClickAtRef.current = 0;
+  }, []);
 
   const scheduleSleep = useCallback(() => {
     clearTimer(sleepTimerRef);
-    if (isHungryRef.current || isWorkingRef.current) {
+    if (isHungryRef.current || isWorkingRef.current || statusRef.current === 'sleep') {
       return;
     }
+
     sleepTimerRef.current = window.setTimeout(() => {
       if (isHungryRef.current || isWorkingRef.current) {
         return;
       }
-      clearTimer(stateTimerRef);
-      setState('sleep');
+
+      clearAction();
+      clearTimer(blinkTimerRef);
+      setStatus('sleep');
       showBubble('zzz...', null);
     }, PET_TIMING.sleepDelayMs);
-  }, [clearTimer, setState, showBubble]);
-
-  const registerInteraction = useCallback(() => {
-    if (stateRef.current !== 'sleep') {
-      scheduleSleep();
-    }
-  }, [scheduleSleep]);
+  }, [clearAction, clearTimer, setStatus, showBubble]);
 
   const scheduleDialogue = useCallback(() => {
     clearTimer(dialogueTimerRef);
     if (isWorkingRef.current) {
       return;
     }
+
     dialogueTimerRef.current = window.setTimeout(() => {
-      if (stateRef.current === 'sleep' || isWorkingRef.current) {
+      if (statusRef.current === 'sleep' || isWorkingRef.current) {
         scheduleDialogue();
         return;
       }
+
       showBubble(pickRandomLine(), PET_TIMING.dialogueBubbleDurationMs);
       scheduleDialogue();
-    }, getRandomDialogueDelay());
+    }, getRandomDelay(PET_TIMING.dialogueMinDelayMs, PET_TIMING.dialogueMaxDelayMs));
   }, [clearTimer, showBubble]);
 
-  const returnToIdleAfter = useCallback(
-    (delay: number, expectedState: PetState) => {
-      clearTimer(stateTimerRef);
-      stateTimerRef.current = window.setTimeout(() => {
-        if (stateRef.current !== expectedState) {
-          return;
-        }
+  const scheduleBlink = useCallback(() => {
+    clearTimer(blinkTimerRef);
+    if (isWorkingRef.current || statusRef.current === 'sleep') {
+      return;
+    }
 
-        if (expectedState === 'angry') {
-          resetClickChain();
-        }
+    blinkTimerRef.current = window.setTimeout(() => {
+      if (actionRef.current === 'none' && statusRef.current !== 'sleep' && !isWorkingRef.current) {
+        triggerAction('blink', PET_TIMING.blinkDurationMs, 'replace');
+      }
+      scheduleBlink();
+    }, getRandomDelay(PET_TIMING.blinkMinDelayMs, PET_TIMING.blinkMaxDelayMs));
+  }, [clearTimer, triggerAction]);
 
-        const nextState = isHungryRef.current ? 'hungry' : 'idle';
-        setState(nextState);
-      }, delay);
-    },
-    [clearTimer, resetClickChain, setState]
-  );
+  const registerInteraction = useCallback(() => {
+    if (statusRef.current !== 'sleep') {
+      scheduleSleep();
+    }
+  }, [scheduleSleep]);
 
   const handlePetClick = useCallback(() => {
     if (isWorkingRef.current) {
-      return;
+      return 'none' as const;
     }
+
     scheduleSleep();
 
-    if (stateRef.current === 'angry') {
-      return;
+    if (actionRef.current === 'angryShake') {
+      return 'angry' as const;
     }
 
-    clickCountRef.current += 1;
-    clearTimer(clickChainTimerRef);
-    clickChainTimerRef.current = window.setTimeout(() => {
-      clickCountRef.current = 0;
-    }, PET_TIMING.clickChainResetDelayMs);
+    const now = Date.now();
+    if (lastClickAtRef.current === 0 || now - lastClickAtRef.current > PET_TIMING.clickBurstWindowMs) {
+      clickCountRef.current = 1;
+    } else {
+      clickCountRef.current += 1;
+    }
+    lastClickAtRef.current = now;
 
     if (clickCountRef.current >= PET_INTERACTION.angryClickThreshold) {
       resetClickChain();
-      setState('angry');
+      triggerAction('angryShake', PET_TIMING.angryDurationMs, 'replace');
       showBubble('别戳啦！');
-      returnToIdleAfter(PET_TIMING.angryDurationMs, 'angry');
-      return;
+      return 'angry' as const;
     }
 
-    setState('happy');
+    triggerAction('happyJump', PET_TIMING.happyDurationMs, 'replace');
     showBubble('嘿嘿~');
     onInteractionRef.current?.('click');
-    returnToIdleAfter(PET_TIMING.happyDurationMs, 'happy');
-  }, [clearTimer, resetClickChain, returnToIdleAfter, scheduleSleep, setState, showBubble]);
+    return 'happy' as const;
+  }, [clearTimer, resetClickChain, scheduleSleep, showBubble, triggerAction]);
 
   const wakeFromSleep = useCallback(() => {
-    if (stateRef.current === 'sleep') {
-      setState(isHungryRef.current ? 'hungry' : 'idle');
+    if (statusRef.current === 'sleep') {
+      setStatus(getBaseStatus(isHungryRef.current, isWorkingRef.current));
       clearBubble();
+      triggerAction('wake', PET_TIMING.wakeDurationMs, 'replace');
       scheduleDialogue();
+      scheduleBlink();
       onInteractionRef.current?.('wake');
     }
 
     scheduleSleep();
-  }, [clearBubble, scheduleDialogue, scheduleSleep, setState]);
+  }, [clearBubble, scheduleBlink, scheduleDialogue, scheduleSleep, setStatus, triggerAction]);
+
+  const startDragging = useCallback(() => {
+    if (statusRef.current === 'sleep') {
+      wakeFromSleep();
+    }
+    resetClickChain();
+    triggerAction('dragging', null, 'replace');
+  }, [resetClickChain, triggerAction, wakeFromSleep]);
+
+  const stopDragging = useCallback(() => {
+    clearAction('dragging');
+    scheduleSleep();
+  }, [clearAction, scheduleSleep]);
+
+  const playEating = useCallback(() => {
+    triggerAction('eating', PET_TIMING.eatingDurationMs, 'replace');
+    showBubble('好吃！');
+  }, [showBubble, triggerAction]);
 
   useEffect(() => {
     const wasHungry = prevHungryRef.current;
     prevHungryRef.current = isHungry;
 
     if (isHungry && !wasHungry && !isWorking) {
-      clearTimer(stateTimerRef);
       clearTimer(sleepTimerRef);
       clearBubble();
-      setState('hungry');
+      setStatus('hungry');
       scheduleDialogue();
+      scheduleBlink();
     } else if (!isHungry && wasHungry && !isWorking) {
-      clearTimer(stateTimerRef);
-      setState('idle');
+      setStatus('idle');
       scheduleSleep();
       scheduleDialogue();
+      scheduleBlink();
     }
-  }, [isHungry, isWorking, clearTimer, clearBubble, setState, scheduleDialogue, scheduleSleep]);
+  }, [isHungry, isWorking, clearBubble, clearTimer, scheduleBlink, scheduleDialogue, scheduleSleep, setStatus]);
 
   useEffect(() => {
     const wasWorking = prevWorkingRef.current;
@@ -198,37 +301,45 @@ export function usePetStateMachine(isHungry: boolean, isWorking: boolean, onInte
 
     if (isWorking && !wasWorking) {
       clearTimer(dialogueTimerRef);
-      clearTimer(stateTimerRef);
       clearTimer(sleepTimerRef);
+      clearTimer(blinkTimerRef);
       clearBubble();
-      setState('working');
+      clearAction();
+      setStatus('working');
     } else if (!isWorking && wasWorking) {
-      clearTimer(stateTimerRef);
-      setState(isHungryRef.current ? 'hungry' : 'idle');
+      setStatus(getBaseStatus(isHungryRef.current, false));
       scheduleSleep();
       scheduleDialogue();
+      scheduleBlink();
     }
-  }, [isWorking, clearTimer, clearBubble, setState, scheduleDialogue, scheduleSleep]);
+  }, [isWorking, clearAction, clearBubble, clearTimer, scheduleBlink, scheduleDialogue, scheduleSleep, setStatus]);
 
   useEffect(() => {
     scheduleSleep();
     scheduleDialogue();
+    scheduleBlink();
 
     return () => {
-      clearTimer(stateTimerRef);
       clearTimer(sleepTimerRef);
       clearTimer(bubbleTimerRef);
       clearTimer(dialogueTimerRef);
-      clearTimer(clickChainTimerRef);
+      clearTimer(blinkTimerRef);
+      clearTimer(actionTimerRef);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
-    petState,
+    petStatus,
+    petAction,
+    petVisualState: getVisualState(petStatus, petAction),
     bubbleText,
     showBubble,
     handlePetClick,
     registerInteraction,
-    wakeFromSleep
+    wakeFromSleep,
+    startDragging,
+    stopDragging,
+    playEating,
+    triggerAction
   };
 }

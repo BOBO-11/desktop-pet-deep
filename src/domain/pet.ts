@@ -1,4 +1,10 @@
-export type PetState = 'idle' | 'happy' | 'angry' | 'sleep' | 'hungry' | 'working';
+export type PetStatus = 'idle' | 'hungry' | 'sleep' | 'working';
+
+export type PetAction = 'none' | 'happyJump' | 'angryShake' | 'blink' | 'eating' | 'dragging' | 'wake';
+
+export type PetVisualState = PetStatus | 'happy' | 'angry';
+
+export type PetState = PetVisualState;
 
 export type FeedPayload = {
   hungerRestore: number;
@@ -18,4 +24,15 @@ export type MoveDelta = {
 export type FloatText = {
   id: number;
   amount: number;
+};
+
+export type PetParticleKind = 'heart' | 'star' | 'spark' | 'coin' | 'food' | 'sweat' | 'zzz';
+
+export type PetParticle = {
+  id: number;
+  kind: PetParticleKind;
+  x: number;
+  y: number;
+  delay: number;
+  size: number;
 };

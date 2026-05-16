@@ -1,7 +1,7 @@
-import { MouseEvent, PointerEvent, SyntheticEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { CSSProperties, MouseEvent, PointerEvent, SyntheticEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { FALLBACK_PET_IMAGE, PET_IMAGES } from './config/petAssets';
 import { PET_INTERACTION, PET_TIMING } from './config/petRules';
-import type { FloatText, PetState } from './domain/pet';
+import type { FloatText, PetParticle, PetParticleKind, PetVisualState } from './domain/pet';
 import { useHunger } from './hooks/useHunger';
 import { usePetStateMachine } from './hooks/usePetStateMachine';
 import { usePoints } from './hooks/usePoints';
@@ -20,6 +20,25 @@ function getHungerColor(percent: number) {
   if (percent < 25) return '#e74c3c';
   if (percent < 50) return '#f39c12';
   return '#2ecc71';
+}
+
+function getParticleText(kind: PetParticleKind) {
+  switch (kind) {
+    case 'heart':
+      return '♥';
+    case 'star':
+      return '★';
+    case 'spark':
+      return '!';
+    case 'coin':
+      return '+';
+    case 'food':
+      return '●';
+    case 'sweat':
+      return '滴';
+    case 'zzz':
+      return 'Z';
+  }
 }
 
 export function App() {
@@ -45,17 +64,49 @@ export function App() {
     [tryEarnPoints, spawnFloat]
   );
 
-  const { petState, bubbleText, showBubble, handlePetClick, registerInteraction, wakeFromSleep } =
+  const {
+    petStatus,
+    petAction,
+    petVisualState,
+    bubbleText,
+    showBubble,
+    handlePetClick,
+    registerInteraction,
+    wakeFromSleep,
+    startDragging,
+    stopDragging,
+    playEating
+  } =
     usePetStateMachine(isHungry, isWorking, handleInteraction);
 
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(true);
-  const [previousPetState, setPreviousPetState] = useState<PetState | null>(null);
+  const [previousPetState, setPreviousPetState] = useState<PetVisualState | null>(null);
   const [floatTexts, setFloatTexts] = useState<FloatText[]>([]);
+  const [particles, setParticles] = useState<PetParticle[]>([]);
+  const [dragTilt, setDragTilt] = useState(0);
   const floatIdRef = useRef(0);
+  const particleIdRef = useRef(0);
   const dragStateRef = useRef<DragState | null>(null);
   const suppressNextClickRef = useRef(false);
-  const lastPetStateRef = useRef<PetState>(petState);
+  const lastPetStateRef = useRef<PetVisualState>(petVisualState);
   const imageFadeTimerRef = useRef<number | null>(null);
+
+  const spawnParticles = useCallback((kind: PetParticleKind, count: number) => {
+    const nextParticles = Array.from({ length: count }, (_, index) => ({
+      id: particleIdRef.current++,
+      kind,
+      x: 34 + Math.random() * 32,
+      y: 26 + Math.random() * 24,
+      delay: index * 45,
+      size: 12 + Math.random() * 8
+    }));
+
+    setParticles((prev) => [...prev, ...nextParticles]);
+    window.setTimeout(() => {
+      const ids = new Set(nextParticles.map((particle) => particle.id));
+      setParticles((prev) => prev.filter((particle) => !ids.has(particle.id)));
+    }, PET_TIMING.particleDurationMs + count * 45);
+  }, []);
 
   useEffect(() => {
     void window.desktopPet.getAlwaysOnTop().then(setIsAlwaysOnTop);
@@ -66,11 +117,15 @@ export function App() {
     return window.desktopPet.onFeed(({ hungerRestore, cost }) => {
       if (spendPoints(cost)) {
         feed(hungerRestore);
+        playEating();
+        spawnParticles('food', 7);
+        spawnParticles('heart', 4);
       } else {
         showBubble('积分不够...', 2000);
+        spawnParticles('sweat', 3);
       }
     });
-  }, [feed, showBubble, spendPoints]);
+  }, [feed, playEating, showBubble, spawnParticles, spendPoints]);
 
   useEffect(() => {
     return window.desktopPet.onStartWork(({ duration, reward }) => {
@@ -87,15 +142,16 @@ export function App() {
       const actual = addPoints(lastReward);
       if (actual > 0) {
         spawnFloat(actual);
+        spawnParticles('coin', 8);
       } else {
         showBubble('今日打工积分已满...', 2500);
       }
       clearLastReward();
     }
-  }, [lastReward, addPoints, spawnFloat, clearLastReward, showBubble]);
+  }, [lastReward, addPoints, spawnFloat, clearLastReward, showBubble, spawnParticles]);
 
   useEffect(() => {
-    if (lastPetStateRef.current === petState) {
+    if (lastPetStateRef.current === petVisualState) {
       return;
     }
 
@@ -104,12 +160,12 @@ export function App() {
     }
 
     setPreviousPetState(lastPetStateRef.current);
-    lastPetStateRef.current = petState;
+    lastPetStateRef.current = petVisualState;
     imageFadeTimerRef.current = window.setTimeout(() => {
       setPreviousPetState(null);
       imageFadeTimerRef.current = null;
     }, PET_TIMING.imageFadeDurationMs);
-  }, [petState]);
+  }, [petVisualState]);
 
   useEffect(() => {
     return () => {
@@ -132,7 +188,13 @@ export function App() {
       return;
     }
 
-    handlePetClick();
+    const result = handlePetClick();
+    if (result === 'happy') {
+      spawnParticles('star', 6);
+      spawnParticles('heart', 3);
+    } else if (result === 'angry') {
+      spawnParticles('spark', 8);
+    }
   }
 
   function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
@@ -169,10 +231,20 @@ export function App() {
 
     const totalMoveX = Math.abs(event.screenX - dragState.startScreenX);
     const totalMoveY = Math.abs(event.screenY - dragState.startScreenY);
+    if (!dragState.isDragging && totalMoveX <= PET_INTERACTION.dragThresholdPx && totalMoveY <= PET_INTERACTION.dragThresholdPx) {
+      return;
+    }
+
+    if (!dragState.isDragging) {
+      dragState.isDragging = true;
+      startDragging();
+    }
+
     if (totalMoveX > PET_INTERACTION.dragThresholdPx || totalMoveY > PET_INTERACTION.dragThresholdPx) {
       dragState.isDragging = true;
     }
 
+    setDragTilt(Math.max(-12, Math.min(12, delta.x * 0.8)));
     window.desktopPet.moveBy(delta);
     dragState.lastScreenX = event.screenX;
     dragState.lastScreenY = event.screenY;
@@ -188,10 +260,16 @@ export function App() {
     }
 
     dragStateRef.current = null;
+    setDragTilt(0);
+    stopDragging();
   }
 
   return (
-    <main className="pet-window" onContextMenu={(event) => event.preventDefault()}>
+    <main
+      className="pet-window"
+      style={{ '--pet-drag-tilt': `${dragTilt}deg` } as CSSProperties}
+      onContextMenu={(event) => event.preventDefault()}
+    >
       <div className="pet-hunger-bar">
         <div
           className="pet-hunger-fill"
@@ -205,6 +283,21 @@ export function App() {
         </div>
       ))}
 
+      {particles.map((particle) => (
+        <span
+          key={particle.id}
+          className={`pet-particle pet-particle-${particle.kind}`}
+          style={{
+            left: `${particle.x}%`,
+            top: `${particle.y}%`,
+            animationDelay: `${particle.delay}ms`,
+            fontSize: `${particle.size}px`
+          }}
+        >
+          {getParticleText(particle.kind)}
+        </span>
+      ))}
+
       {isWorking && (
         <div className="pet-work-timer">
           打工中... {formatDurationSeconds(remainingSeconds)}
@@ -212,7 +305,7 @@ export function App() {
       )}
 
       <button
-        className={`pet pet-${petState}`}
+        className={`pet pet-${petVisualState} pet-status-${petStatus} pet-action-${petAction}`}
         type="button"
         aria-label="桌宠"
         onClick={handleClick}
@@ -240,9 +333,9 @@ export function App() {
               />
             )}
             <img
-              key={petState}
+              key={petVisualState}
               className="pet-image pet-image-enter"
-              src={PET_IMAGES[petState]}
+              src={PET_IMAGES[petVisualState]}
               alt=""
               draggable={false}
               onError={handleImageError}
