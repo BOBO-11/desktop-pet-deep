@@ -22,6 +22,10 @@ function getBaseStatus(isHungry: boolean, isWorking: boolean): PetStatus {
 }
 
 function getVisualState(status: PetStatus, action: PetAction): PetVisualState {
+  if (action === 'dragging') {
+    return 'dragging';
+  }
+
   if (action === 'happyJump' || action === 'eating' || action === 'wake') {
     return 'happy';
   }
@@ -264,8 +268,9 @@ export function usePetStateMachine(isHungry: boolean, isWorking: boolean, onInte
       wakeFromSleep();
     }
     resetClickChain();
+    clearBubble();
     triggerAction('dragging', null, 'replace');
-  }, [resetClickChain, triggerAction, wakeFromSleep]);
+  }, [clearBubble, resetClickChain, triggerAction, wakeFromSleep]);
 
   const stopDragging = useCallback(() => {
     clearAction('dragging');

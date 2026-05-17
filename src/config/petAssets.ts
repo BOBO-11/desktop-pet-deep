@@ -6,7 +6,8 @@ export const PET_SPRITE_FRAMES: Record<PetVisualState, readonly string[]> = {
   angry: ['/pet/frames/cutout/angry-1.png', '/pet/frames/cutout/angry-2.png', '/pet/frames/cutout/angry-3.png'],
   sleep: ['/pet/frames/cutout/sleep-1.png', '/pet/frames/cutout/sleep-2.png', '/pet/frames/cutout/sleep-3.png'],
   hungry: ['/pet/frames/cutout/hungry-1.png', '/pet/frames/cutout/hungry-2.png', '/pet/frames/cutout/hungry-3.png'],
-  working: ['/pet/frames/cutout/working-1.png', '/pet/frames/cutout/working-2.png', '/pet/frames/cutout/working-3.png']
+  working: ['/pet/frames/cutout/working-1.png', '/pet/frames/cutout/working-2.png', '/pet/frames/cutout/working-3.png'],
+  dragging: ['/pet/frames/cutout/dragging-1.png', '/pet/frames/cutout/dragging-2.png', '/pet/frames/cutout/dragging-3.png']
 };
 
 export const PET_SPRITE_FRAME_MS: Record<PetVisualState, number> = {
@@ -15,5 +16,6 @@ export const PET_SPRITE_FRAME_MS: Record<PetVisualState, number> = {
   angry: 90,
   sleep: 240,
   hungry: 180,
-  working: 140
+  working: 140,
+  dragging: 120
 };

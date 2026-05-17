@@ -1,4 +1,4 @@
-import { CSSProperties, MouseEvent, PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { MouseEvent, PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { PET_INTERACTION, PET_TIMING } from './config/petRules';
 import { PET_SPRITE_FRAMES } from './config/petAssets';
 import type { FloatText, PetParticle, PetParticleKind, PetVisualState } from './domain/pet';
@@ -45,7 +45,7 @@ function getParticleText(kind: PetParticleKind) {
 export function App() {
   const { hungerPercent, isHungry, feed } = useHunger();
   const { points, tryEarnPoints, spendPoints, addPoints } = usePoints();
-  const { isWorking, remainingSeconds, startWork, lastReward, clearLastReward } = useWork();
+  const { isWorking, remainingSeconds, startWork, interruptWork, lastReward, lastRewardSource, clearLastReward } = useWork();
 
   const spawnFloat = useCallback((amount: number) => {
     const id = floatIdRef.current++;
@@ -83,7 +83,6 @@ export function App() {
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(true);
   const [floatTexts, setFloatTexts] = useState<FloatText[]>([]);
   const [particles, setParticles] = useState<PetParticle[]>([]);
-  const [dragTilt, setDragTilt] = useState(0);
   const floatIdRef = useRef(0);
   const particleIdRef = useRef(0);
   const dragStateRef = useRef<DragState | null>(null);
@@ -118,6 +117,10 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    window.desktopPet.setWorkRunning(isWorking);
+  }, [isWorking]);
+
+  useEffect(() => {
     return window.desktopPet.onFeed(({ hungerRestore, cost }) => {
       if (spendPoints(cost)) {
         feed(hungerRestore);
@@ -142,17 +145,33 @@ export function App() {
   }, [isWorking, showBubble, startWork]);
 
   useEffect(() => {
+    return window.desktopPet.onInterruptWork(() => {
+      const result = interruptWork();
+
+      if (!result.interrupted) {
+        showBubble('现在没有在打工...', 1800);
+        return;
+      }
+
+      if (result.reward <= 0) {
+        showBubble('打工时间太短，未获得积分', 2200);
+      }
+    });
+  }, [interruptWork, showBubble]);
+
+  useEffect(() => {
     if (lastReward > 0) {
       const actual = addPoints(lastReward);
       if (actual > 0) {
         spawnFloat(actual);
-        spawnParticles('coin', 8);
+        spawnParticles('coin', lastRewardSource === 'interrupt' ? 4 : 8);
+        showBubble(lastRewardSource === 'interrupt' ? `中断打工 +${actual}` : `打工完成 +${actual}`, 2200);
       } else {
         showBubble('今日打工积分已满...', 2500);
       }
       clearLastReward();
     }
-  }, [lastReward, addPoints, spawnFloat, clearLastReward, showBubble, spawnParticles]);
+  }, [lastReward, lastRewardSource, addPoints, spawnFloat, clearLastReward, showBubble, spawnParticles]);
 
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     if (suppressNextClickRef.current) {
@@ -217,7 +236,6 @@ export function App() {
       dragState.isDragging = true;
     }
 
-    setDragTilt(Math.max(-12, Math.min(12, delta.x * 0.8)));
     window.desktopPet.moveBy(delta);
     dragState.lastScreenX = event.screenX;
     dragState.lastScreenY = event.screenY;
@@ -233,14 +251,12 @@ export function App() {
     }
 
     dragStateRef.current = null;
-    setDragTilt(0);
     stopDragging();
   }
 
   return (
     <main
       className="pet-window"
-      style={{ '--pet-drag-tilt': `${dragTilt}deg` } as CSSProperties}
       onContextMenu={(event) => event.preventDefault()}
     >
       <div className="pet-hunger-bar">
@@ -271,7 +287,7 @@ export function App() {
         </span>
       ))}
 
-      {isWorking && (
+      {isWorking && petAction !== 'dragging' && (
         <div className="pet-work-timer">
           打工中... {formatDurationSeconds(remainingSeconds)}
         </div>

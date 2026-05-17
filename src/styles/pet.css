@@ -85,7 +85,11 @@
 }
 
 .pet-action-dragging .pet-motion {
-  animation: pet-drag-squash 0.52s ease-in-out infinite;
+  animation: pet-drag-hang 0.36s ease-in-out infinite;
+}
+
+.pet-action-dragging .pet-sprite-layer {
+  filter: drop-shadow(0 12px 14px rgb(60 42 25 / 0.2));
 }
 
 .pet-action-wake .pet-motion {
@@ -100,7 +104,7 @@
   animation: pet-blink-fade 180ms ease-in-out both;
 }
 
-.pet-status-working .pet-sprite-stage::after {
+.pet-status-working:not(.pet-action-dragging) .pet-sprite-stage::after {
   content: '';
   position: absolute;
   right: 24%;
@@ -394,14 +398,14 @@
   }
 }
 
-@keyframes pet-drag-squash {
+@keyframes pet-drag-hang {
   0%,
   100% {
-    transform: rotate(var(--pet-drag-tilt, 0deg)) scale(1.02, 0.98);
+    transform: translateY(0);
   }
 
   50% {
-    transform: rotate(var(--pet-drag-tilt, 0deg)) translateY(3px) scale(0.98, 1.03);
+    transform: translateY(3px);
   }
 }
 

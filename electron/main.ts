@@ -1,6 +1,6 @@
-import { app, BrowserWindow, Menu, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, screen, type MenuItemConstructorOptions } from 'electron';
 import path from 'node:path';
-import { FEED_MENU_ITEMS, WORK_MENU_ITEMS } from './menuConfig';
+import { FEED_MENU_ITEMS, INTERRUPT_WORK_MENU_ITEM, WORK_MENU_ITEMS } from './menuConfig';
 
 app.disableHardwareAcceleration();
 
@@ -11,6 +11,7 @@ if (!gotSingleInstanceLock) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let isPetWorking = false;
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 const MAX_MOVE_DELTA = 100;
@@ -98,15 +99,28 @@ ipcMain.on('window:show-context-menu', () => {
   }
 
   const isAlwaysOnTop = mainWindow.isAlwaysOnTop();
-  const menu = Menu.buildFromTemplate([
-    {
-      label: '打工',
-      submenu: WORK_MENU_ITEMS.map((item) => ({
+  const workSubmenu: MenuItemConstructorOptions[] = isPetWorking
+    ? [
+        { label: '正在打工中', enabled: false },
+        { type: 'separator' },
+        {
+          label: INTERRUPT_WORK_MENU_ITEM.label,
+          click: () => {
+            mainWindow?.webContents.send('pet:interrupt-work');
+          }
+        }
+      ]
+    : WORK_MENU_ITEMS.map((item) => ({
         label: item.label,
         click: () => {
           mainWindow?.webContents.send('pet:start-work', { duration: item.duration, reward: item.reward });
         }
-      }))
+      }));
+
+  const menu = Menu.buildFromTemplate([
+    {
+      label: '打工',
+      submenu: workSubmenu
     },
     { type: 'separator' },
     {
@@ -141,6 +155,10 @@ ipcMain.on('window:show-context-menu', () => {
   ]);
 
   menu.popup({ window: mainWindow });
+});
+
+ipcMain.on('pet:set-work-running', (_event, value: boolean) => {
+  isPetWorking = value === true;
 });
 
 ipcMain.on('window:move-by', (_event, delta: { x: number; y: number }) => {

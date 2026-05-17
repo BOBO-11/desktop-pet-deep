@@ -38,3 +38,9 @@ export const POINT_RULES = {
   minInteractionReward: 1,
   maxInteractionReward: 1
 } as const;
+
+export const WORK_RULES = {
+  interruptRewardGraceMs: 2 * 60 * 1000,
+  interruptRewardRate: 0.45,
+  interruptRewardCapRatio: 0.5
+} as const;

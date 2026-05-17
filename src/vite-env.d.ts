@@ -7,10 +7,14 @@ declare global {
     desktopPet: {
       showContextMenu: () => void;
       moveBy: (delta: MoveDelta) => void;
+      setWorkRunning: (value: boolean) => void;
       getAlwaysOnTop: () => Promise<boolean>;
       onAlwaysOnTopChanged: (callback: (value: boolean) => void) => () => void;
       onFeed: (callback: (data: FeedPayload) => void) => () => void;
+      onInterruptWork: (callback: () => void) => () => void;
       onStartWork: (callback: (data: WorkPayload) => void) => () => void;
     };
   }
 }
+
+export {};

@@ -2,7 +2,7 @@ export type PetStatus = 'idle' | 'hungry' | 'sleep' | 'working';
 
 export type PetAction = 'none' | 'happyJump' | 'angryShake' | 'blink' | 'eating' | 'dragging' | 'wake';
 
-export type PetVisualState = PetStatus | 'happy' | 'angry';
+export type PetVisualState = PetStatus | 'happy' | 'angry' | 'dragging';
 
 export type PetState = PetVisualState;
 
