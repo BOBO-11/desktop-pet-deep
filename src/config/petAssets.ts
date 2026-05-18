@@ -1,13 +1,15 @@
 import type { PetVisualState } from '../domain/pet';
 
+const petFrame = (fileName: string) => `${import.meta.env.BASE_URL}pet/frames/cutout/${fileName}.png`;
+
 export const PET_SPRITE_FRAMES: Record<PetVisualState, readonly string[]> = {
-  idle: ['/pet/frames/cutout/idle-1.png', '/pet/frames/cutout/idle-2.png', '/pet/frames/cutout/idle-3.png'],
-  happy: ['/pet/frames/cutout/happy-1.png', '/pet/frames/cutout/happy-2.png', '/pet/frames/cutout/happy-3.png'],
-  angry: ['/pet/frames/cutout/angry-1.png', '/pet/frames/cutout/angry-2.png', '/pet/frames/cutout/angry-3.png'],
-  sleep: ['/pet/frames/cutout/sleep-1.png', '/pet/frames/cutout/sleep-2.png', '/pet/frames/cutout/sleep-3.png'],
-  hungry: ['/pet/frames/cutout/hungry-1.png', '/pet/frames/cutout/hungry-2.png', '/pet/frames/cutout/hungry-3.png'],
-  working: ['/pet/frames/cutout/working-1.png', '/pet/frames/cutout/working-2.png', '/pet/frames/cutout/working-3.png'],
-  dragging: ['/pet/frames/cutout/dragging-1.png', '/pet/frames/cutout/dragging-2.png', '/pet/frames/cutout/dragging-3.png']
+  idle: [petFrame('idle-1'), petFrame('idle-2'), petFrame('idle-3')],
+  happy: [petFrame('happy-1'), petFrame('happy-2'), petFrame('happy-3')],
+  angry: [petFrame('angry-1'), petFrame('angry-2'), petFrame('angry-3')],
+  sleep: [petFrame('sleep-1'), petFrame('sleep-2'), petFrame('sleep-3')],
+  hungry: [petFrame('hungry-1'), petFrame('hungry-2'), petFrame('hungry-3')],
+  working: [petFrame('working-1'), petFrame('working-2'), petFrame('working-3')],
+  dragging: [petFrame('dragging-1'), petFrame('dragging-2'), petFrame('dragging-3')]
 };
 
 export const PET_SPRITE_FRAME_MS: Record<PetVisualState, number> = {
