@@ -1,6 +1,16 @@
 import { app, BrowserWindow, Menu, ipcMain, screen, type MenuItemConstructorOptions } from 'electron';
 import path from 'node:path';
 import { FEED_MENU_ITEMS, INTERRUPT_WORK_MENU_ITEM, WORK_MENU_ITEMS } from './menuConfig';
+import {
+  appendPointLedgerEntry,
+  getDatabaseInfo,
+  getPointLedgerEntries,
+  getStorageSnapshot,
+  removeStorageValue,
+  setStorageValue,
+  startStorageChangePolling,
+  type PointLedgerWrite
+} from './petDatabase';
 
 app.disableHardwareAcceleration();
 
@@ -12,6 +22,7 @@ if (!gotSingleInstanceLock) {
 
 let mainWindow: BrowserWindow | null = null;
 let isPetWorking = false;
+let stopStorageChangePolling: (() => void) | null = null;
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 const MAX_MOVE_DELTA = 100;
@@ -19,6 +30,21 @@ const WINDOW_SIZE = 240;
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+function isPointLedgerWrite(value: unknown): value is PointLedgerWrite {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      Number.isFinite((value as PointLedgerWrite).timestamp) &&
+      ((value as PointLedgerWrite).type === 'earn' || (value as PointLedgerWrite).type === 'spend') &&
+      typeof (value as PointLedgerWrite).source === 'string' &&
+      Number.isFinite((value as PointLedgerWrite).amount) &&
+      (
+        (value as PointLedgerWrite).balanceAfter === null ||
+        Number.isFinite((value as PointLedgerWrite).balanceAfter)
+      )
+  );
 }
 
 function createWindow() {
@@ -75,12 +101,21 @@ app.whenReady().then(() => {
   }
 
   createWindow();
+  stopStorageChangePolling?.();
+  stopStorageChangePolling = startStorageChangePolling((snapshot) => {
+    mainWindow?.webContents.send('storage:snapshot-changed', snapshot);
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
+});
+
+app.on('before-quit', () => {
+  stopStorageChangePolling?.();
+  stopStorageChangePolling = null;
 });
 
 app.on('window-all-closed', () => {
@@ -128,7 +163,7 @@ ipcMain.on('window:show-context-menu', () => {
       submenu: FEED_MENU_ITEMS.map((item) => ({
         label: item.label,
         click: () => {
-          mainWindow?.webContents.send('pet:feed', { hungerRestore: item.hungerRestore, cost: item.cost });
+          mainWindow?.webContents.send('pet:feed', { label: item.label, hungerRestore: item.hungerRestore, cost: item.cost });
         }
       }))
     },
@@ -159,6 +194,42 @@ ipcMain.on('window:show-context-menu', () => {
 
 ipcMain.on('pet:set-work-running', (_event, value: boolean) => {
   isPetWorking = value === true;
+});
+
+ipcMain.handle('storage:get-snapshot', () => {
+  return getStorageSnapshot();
+});
+
+ipcMain.handle('storage:set-value', (_event, key: unknown, value: unknown) => {
+  if (typeof key !== 'string' || typeof value !== 'string') {
+    return undefined;
+  }
+
+  return setStorageValue(key, value);
+});
+
+ipcMain.handle('storage:remove-value', (_event, key: unknown) => {
+  if (typeof key !== 'string') {
+    return undefined;
+  }
+
+  return removeStorageValue(key);
+});
+
+ipcMain.handle('storage:get-database-info', () => {
+  return getDatabaseInfo();
+});
+
+ipcMain.handle('points:append-ledger', (_event, entry: unknown) => {
+  if (!isPointLedgerWrite(entry)) {
+    return undefined;
+  }
+
+  return appendPointLedgerEntry(entry);
+});
+
+ipcMain.handle('points:get-ledger', (_event, limit: unknown) => {
+  return getPointLedgerEntries(typeof limit === 'number' ? limit : undefined);
 });
 
 ipcMain.on('window:move-by', (_event, delta: { x: number; y: number }) => {

@@ -2,7 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { POINT_RULES } from '../config/petRules';
 import { STORAGE_KEYS } from '../config/storageKeys';
 import { getLocalDateKey } from '../utils/date';
-import { readJson, readNumber, writeJson, writeNumber } from '../utils/storage';
+import type { PointLedgerSource, SpendRecord } from '../domain/pet';
+import {
+  readJson,
+  readNumber,
+  recordPointLedgerEntry,
+  subscribeStorageChanges,
+  writeJson,
+  writeNumber
+} from '../utils/storage';
 
 type DailyPoints = {
   date: string;
@@ -22,6 +30,19 @@ function isDailyPoints(value: unknown): value is DailyPoints {
   );
 }
 
+function isSpendRecordArray(value: unknown): value is SpendRecord[] {
+  return Array.isArray(value) && value.every(
+    r => typeof r === 'object' && r &&
+      typeof (r as SpendRecord).timestamp === 'number' &&
+      typeof (r as SpendRecord).amount === 'number' &&
+      typeof (r as SpendRecord).category === 'string'
+  );
+}
+
+function loadSpendHistory(): SpendRecord[] {
+  return readJson<SpendRecord[]>(STORAGE_KEYS.spendHistory, [], isSpendRecordArray);
+}
+
 function loadDaily(): DailyPoints {
   return readJson<DailyPoints>(STORAGE_KEYS.dailyInteraction, { date: '', earned: 0 }, isDailyPoints);
 }
@@ -39,10 +60,38 @@ export function usePoints() {
   const dailyRef = useRef(loadDaily());
   const dailyWorkRef = useRef(loadDailyWork());
 
+  const commitPoints = useCallback((nextPoints: number) => {
+    pointsRef.current = nextPoints;
+    setPoints(nextPoints);
+    writeNumber(STORAGE_KEYS.points, nextPoints);
+  }, []);
+
+  const recordPointChange = useCallback((
+    type: 'earn' | 'spend',
+    source: PointLedgerSource,
+    amount: number,
+    balanceAfter: number,
+    note: string
+  ) => {
+    recordPointLedgerEntry({
+      timestamp: Date.now(),
+      type,
+      source,
+      amount,
+      balanceAfter,
+      note
+    });
+  }, []);
+
   useEffect(() => {
-    pointsRef.current = points;
-    writeNumber(STORAGE_KEYS.points, points);
-  }, [points]);
+    return subscribeStorageChanges(() => {
+      const nextPoints = loadPoints();
+      pointsRef.current = nextPoints;
+      dailyRef.current = loadDaily();
+      dailyWorkRef.current = loadDailyWork();
+      setPoints(nextPoints);
+    });
+  }, []);
 
   const tryEarnPoints = useCallback((): number => {
     const now = Date.now();
@@ -80,24 +129,31 @@ export function usePoints() {
     lastEarnRef.current = now;
     minutePointsRef.current += earned;
     dailyRef.current.earned += earned;
-    pointsRef.current += earned;
-    setPoints(pointsRef.current);
+    const nextPoints = pointsRef.current + earned;
+    commitPoints(nextPoints);
 
     writeJson(STORAGE_KEYS.dailyInteraction, dailyRef.current);
+    recordPointChange('earn', 'interaction', earned, nextPoints, '互动获得积分');
 
     return earned;
-  }, []);
+  }, [commitPoints, recordPointChange]);
 
-  const spendPoints = useCallback((amount: number): boolean => {
+  const spendPoints = useCallback((amount: number, category: string): boolean => {
     if (pointsRef.current < amount) {
       return false;
     }
-    pointsRef.current -= amount;
-    setPoints(pointsRef.current);
-    return true;
-  }, []);
+    const nextPoints = pointsRef.current - amount;
+    commitPoints(nextPoints);
 
-  const addPoints = useCallback((amount: number): number => {
+    const history = loadSpendHistory();
+    history.push({ timestamp: Date.now(), amount, category });
+    writeJson(STORAGE_KEYS.spendHistory, history);
+    recordPointChange('spend', 'feed', amount, nextPoints, category);
+
+    return true;
+  }, [commitPoints, recordPointChange]);
+
+  const addPoints = useCallback((amount: number, source: PointLedgerSource = 'work-complete'): number => {
     const today = getLocalDateKey();
 
     if (dailyWorkRef.current.date !== today) {
@@ -110,13 +166,20 @@ export function usePoints() {
     }
 
     dailyWorkRef.current.earned += actual;
-    pointsRef.current += actual;
-    setPoints(pointsRef.current);
+    const nextPoints = pointsRef.current + actual;
+    commitPoints(nextPoints);
 
     writeJson(STORAGE_KEYS.dailyWork, dailyWorkRef.current);
+    recordPointChange(
+      'earn',
+      source,
+      actual,
+      nextPoints,
+      source === 'work-interrupt' ? '中断打工获得积分' : '打工完成获得积分'
+    );
 
     return actual;
-  }, []);
+  }, [commitPoints, recordPointChange]);
 
   return { points, tryEarnPoints, spendPoints, addPoints };
 }

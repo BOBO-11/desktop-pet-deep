@@ -7,8 +7,37 @@ export type PetVisualState = PetStatus | 'happy' | 'angry' | 'dragging';
 export type PetState = PetVisualState;
 
 export type FeedPayload = {
+  label: string;
   hungerRestore: number;
   cost: number;
+};
+
+export type SpendRecord = {
+  timestamp: number;
+  amount: number;
+  category: string;
+};
+
+export type PointLedgerType = 'earn' | 'spend';
+
+export type PointLedgerSource =
+  | 'interaction'
+  | 'work-complete'
+  | 'work-interrupt'
+  | 'feed'
+  | 'legacy-feed';
+
+export type PointLedgerWrite = {
+  timestamp: number;
+  type: PointLedgerType;
+  source: PointLedgerSource;
+  amount: number;
+  balanceAfter: number | null;
+  note?: string | null;
+};
+
+export type PointLedgerEntry = PointLedgerWrite & {
+  id: number;
 };
 
 export type WorkPayload = {

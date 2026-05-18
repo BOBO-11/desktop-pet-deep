@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PET_TIMING, WORK_RULES } from '../config/petRules';
 import { STORAGE_KEYS } from '../config/storageKeys';
-import { readJson, removeStoredValue, writeJson } from '../utils/storage';
+import { readJson, removeStoredValue, subscribeStorageChanges, writeJson } from '../utils/storage';
 
 type WorkState = {
   startTime: number;
@@ -109,6 +109,19 @@ function saveWork(state: WorkState) {
   }
 }
 
+function isSameWorkState(left: WorkState, right: WorkState) {
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return (
+    left.startTime === right.startTime &&
+    left.endTime === right.endTime &&
+    left.durationMs === right.durationMs &&
+    left.reward === right.reward
+  );
+}
+
 function calculateInterruptReward(state: NonNullable<WorkState>, now = Date.now()) {
   const remainingMs = Math.max(0, state.endTime - now);
   const elapsedMs = Math.max(0, state.durationMs - remainingMs);
@@ -141,6 +154,15 @@ export function useWork() {
   useEffect(() => {
     saveWork(workState);
   }, [workState]);
+
+  useEffect(() => {
+    return subscribeStorageChanges(() => {
+      const nextWorkState = loadWork();
+      setWorkState((currentWorkState) =>
+        isSameWorkState(currentWorkState, nextWorkState) ? currentWorkState : nextWorkState
+      );
+    });
+  }, []);
 
   const startWork = useCallback((durationMs: number, reward: number) => {
     if (!Number.isFinite(durationMs) || !Number.isFinite(reward) || durationMs <= 0 || reward <= 0) {

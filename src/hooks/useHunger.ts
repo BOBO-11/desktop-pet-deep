@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HUNGER_RULES } from '../config/petRules';
 import { STORAGE_KEYS } from '../config/storageKeys';
-import { readJson, writeJson } from '../utils/storage';
+import { readJson, subscribeStorageChanges, writeJson } from '../utils/storage';
 
 type StoredHunger = {
   hunger: number;
@@ -51,6 +51,12 @@ export function useHunger() {
   useEffect(() => {
     saveHunger(hunger);
   }, [hunger]);
+
+  useEffect(() => {
+    return subscribeStorageChanges(() => {
+      setHunger(loadHunger());
+    });
+  }, []);
 
   useEffect(() => {
     timerRef.current = window.setInterval(() => {

@@ -1,6 +1,7 @@
 import { MouseEvent, PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { PET_INTERACTION, PET_TIMING } from './config/petRules';
 import { PET_SPRITE_FRAMES } from './config/petAssets';
+import { STORAGE_KEYS } from './config/storageKeys';
 import type { FloatText, PetParticle, PetParticleKind, PetVisualState } from './domain/pet';
 import { PetSprite } from './components/PetSprite';
 import { useHunger } from './hooks/useHunger';
@@ -8,6 +9,7 @@ import { usePetStateMachine } from './hooks/usePetStateMachine';
 import { usePoints } from './hooks/usePoints';
 import { useWork } from './hooks/useWork';
 import { formatDurationSeconds } from './utils/format';
+import { hydrateStorageFromDatabase } from './utils/storage';
 
 type DragState = {
   startScreenX: number;
@@ -42,7 +44,33 @@ function getParticleText(kind: PetParticleKind) {
   }
 }
 
+const PERSISTED_STORAGE_KEYS = Object.values(STORAGE_KEYS);
+
 export function App() {
+  const [storageReady, setStorageReady] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    void hydrateStorageFromDatabase(PERSISTED_STORAGE_KEYS).finally(() => {
+      if (mounted) {
+        setStorageReady(true);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (!storageReady) {
+    return <main className="pet-window" onContextMenu={(event) => event.preventDefault()} />;
+  }
+
+  return <PetApp />;
+}
+
+function PetApp() {
   const { hungerPercent, isHungry, feed } = useHunger();
   const { points, tryEarnPoints, spendPoints, addPoints } = usePoints();
   const { isWorking, remainingSeconds, startWork, interruptWork, lastReward, lastRewardSource, clearLastReward } = useWork();
@@ -121,8 +149,8 @@ export function App() {
   }, [isWorking]);
 
   useEffect(() => {
-    return window.desktopPet.onFeed(({ hungerRestore, cost }) => {
-      if (spendPoints(cost)) {
+    return window.desktopPet.onFeed(({ hungerRestore, cost, label }) => {
+      if (spendPoints(cost, label)) {
         feed(hungerRestore);
         playEating();
         spawnParticles('food', 7);
@@ -161,7 +189,10 @@ export function App() {
 
   useEffect(() => {
     if (lastReward > 0) {
-      const actual = addPoints(lastReward);
+      const actual = addPoints(
+        lastReward,
+        lastRewardSource === 'interrupt' ? 'work-interrupt' : 'work-complete'
+      );
       if (actual > 0) {
         spawnFloat(actual);
         spawnParticles('coin', lastRewardSource === 'interrupt' ? 4 : 8);

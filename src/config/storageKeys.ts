@@ -3,5 +3,6 @@ export const STORAGE_KEYS = {
   points: 'pet-points',
   dailyInteraction: 'pet-daily',
   dailyWork: 'pet-daily-work',
-  work: 'pet-work'
+  work: 'pet-work',
+  spendHistory: 'pet-spend-history'
 } as const;
