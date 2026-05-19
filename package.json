@@ -10,7 +10,7 @@
     "electron:dev": "cross-env NODE_ENV=development nodemon --watch dist-electron --ext js --exec electron .",
     "start": "npm run build:electron && concurrently -k \"npm run dev\" \"npm run watch:electron\" \"wait-on tcp:5173 dist-electron/main.js && npm run electron:dev\"",
     "build": "tsc && vite build && npm run build:electron",
-    "dist": "npm run build && electron-builder --win --x64",
+    "dist": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --x64",
     "preview": "vite preview --host 127.0.0.1"
   },
   "build": {

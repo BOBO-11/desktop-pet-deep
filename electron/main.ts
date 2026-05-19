@@ -33,16 +33,21 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function isPointLedgerWrite(value: unknown): value is PointLedgerWrite {
+  const entry = value as PointLedgerWrite;
+
   return Boolean(
     value &&
       typeof value === 'object' &&
-      Number.isFinite((value as PointLedgerWrite).timestamp) &&
-      ((value as PointLedgerWrite).type === 'earn' || (value as PointLedgerWrite).type === 'spend') &&
-      typeof (value as PointLedgerWrite).source === 'string' &&
-      Number.isFinite((value as PointLedgerWrite).amount) &&
+      Number.isFinite(entry.timestamp) &&
+      entry.timestamp > 0 &&
+      (entry.type === 'earn' || entry.type === 'spend') &&
+      typeof entry.source === 'string' &&
+      entry.source.trim().length > 0 &&
+      Number.isFinite(entry.amount) &&
+      entry.amount > 0 &&
       (
-        (value as PointLedgerWrite).balanceAfter === null ||
-        Number.isFinite((value as PointLedgerWrite).balanceAfter)
+        entry.balanceAfter === null ||
+        (Number.isFinite(entry.balanceAfter) && entry.balanceAfter >= 0)
       )
   );
 }
@@ -229,7 +234,7 @@ ipcMain.handle('points:append-ledger', (_event, entry: unknown) => {
 });
 
 ipcMain.handle('points:get-ledger', (_event, limit: unknown) => {
-  return getPointLedgerEntries(typeof limit === 'number' ? limit : undefined);
+  return getPointLedgerEntries(typeof limit === 'number' && Number.isFinite(limit) ? limit : undefined);
 });
 
 ipcMain.on('window:move-by', (_event, delta: { x: number; y: number }) => {

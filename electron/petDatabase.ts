@@ -48,10 +48,14 @@ let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 let lastFileSignature: DatabaseFileSignature | null = null;
 
 function resolveSqlWasmPath(file: string) {
+  const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
   const candidates = [
     path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', file),
     path.join(app.getAppPath(), 'node_modules', 'sql.js', 'dist', file),
-    path.join(__dirname, '..', 'node_modules', 'sql.js', 'dist', file)
+    path.join(__dirname, '..', 'node_modules', 'sql.js', 'dist', file),
+    ...(resourcesPath
+      ? [path.join(resourcesPath, 'app.asar.unpacked', 'node_modules', 'sql.js', 'dist', file)]
+      : [])
   ];
 
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
@@ -136,12 +140,18 @@ function importLegacySpendHistory(database: Database) {
       const records = JSON.parse(raw) as unknown;
       if (Array.isArray(records)) {
         records.filter(isLegacySpendRecord).forEach((record) => {
+          const timestamp = Math.floor(record.timestamp);
+          const amount = Math.floor(record.amount);
+          if (timestamp <= 0 || amount <= 0) {
+            return;
+          }
+
           database.run(
             `
               INSERT INTO point_ledger (timestamp, type, source, amount, balance_after, note)
               VALUES (?, 'spend', 'legacy-feed', ?, NULL, ?);
             `,
-            [record.timestamp, Math.max(0, Math.floor(record.amount)), record.category]
+            [timestamp, amount, record.category]
           );
         });
       }
@@ -391,7 +401,9 @@ export async function appendPointLedgerEntry(entry: PointLedgerWrite) {
 }
 
 export async function getPointLedgerEntries(limit = 200): Promise<PointLedgerEntry[]> {
-  const safeLimit = Math.max(1, Math.min(1000, Math.floor(limit)));
+  const safeLimit = Number.isFinite(limit)
+    ? Math.max(1, Math.min(1000, Math.floor(limit)))
+    : 200;
   const { database } = await getDatabase();
   const rows = database.exec(
     `
